@@ -1,0 +1,9 @@
+autopep8==2.0.2
+joblib==1.2.0
+Pillow==9.5.0
+pycodestyle==2.10.0
+PyYAML==6.0
+threadpoolctl==3.1.0
+tomli==2.0.1
+Wave==0.0.2
+z80dis==1.0.6

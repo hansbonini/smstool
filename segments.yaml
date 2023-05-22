@@ -1,0 +1,90 @@
+segments:
+  - name: reset
+    start: 0x0
+    end: 0x38
+    type: code
+  - name: box_skull
+    start: 0xC000
+    end: 0xC080
+    type: image
+    bpp: 4
+    width: 2
+    height: 2
+  - name: box_question_mark
+    start: 0xC080
+    end: 0xC100
+    type: image
+    bpp: 4
+    width: 2
+    height: 2
+  - name: box_star
+    start: 0xC100
+    end: 0xC180
+    type: image
+    bpp: 4
+    width: 2
+    height: 2
+  - name: box_star_pink
+    start: 0xC180
+    end: 0xC200
+    type: image
+    bpp: 4
+    width: 2
+    height: 2
+  - name: box_waves_pink
+    start: 0xC200
+    end: 0xC280
+    type: image
+    bpp: 4
+    width: 2
+    height: 2
+  - name: box_fish_pink
+    start: 0xC280
+    end: 0xC300
+    type: image
+    bpp: 4
+    width: 2
+    height: 2
+  - name: box_moon_pink
+    start: 0xC300
+    end: 0xC380
+    type: image
+    bpp: 4
+    width: 2
+    height: 2
+  - name: box_skull_pink
+    start: 0xC380
+    end: 0xC400
+    type: image
+    bpp: 4
+    width: 2
+    height: 2
+  - name: box_sun_pink
+    start: 0xC400
+    end: 0xC480
+    type: image
+    bpp: 4
+    width: 2
+    height: 2
+  - name: font
+    start: 0xB305
+    end: 0xB505
+    type: image
+    bpp: 1
+  - name: magic_capsules
+    start: 0x16F11
+    end: 0x17111
+    type: image
+    bpp: 4
+  - name: alex_states
+    start: 0x17111
+    end: 0x17291
+    type: image
+    bpp: 4
+    width: 2
+    height: 6
+  - name: tiles
+    start: 0x1C068
+    end: 0x1F108
+    type: image
+    bpp: 4
