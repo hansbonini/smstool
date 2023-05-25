@@ -1,7 +1,7 @@
 segments:
   - name: reset
     start: 0x0
-    end: 0x1000
+    end: 0xC000
     type: code
   - name: box_skull
     start: 0xC000
