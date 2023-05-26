@@ -4,143 +4,36 @@ from segtypes.segment import Segment
 
 
 class CodeSegment(Segment):
-    def __init__(self, start, end, name, labels={}):
+    def __init__(self, start, end, name, lines=[]):
         super().__init__(start, end, name)
-        self.instructions = []
-        self.labels = labels
-
-    def disassemble(self, segment_data):
-        address = self.start
-        while address < self.end:
-            decoded = z80.decode(segment_data[address::], address)
-            if decoded.status != z80.DECODE_STATUS.OK:
-                break
-            # print(f"\t {z80.disasm(decoded).replace('0x', '$').lower()}")
-            # print(decoded.operands)
-            self.instructions.append((address, decoded))
-            address += decoded.len
-
-    def print_instructions(self):
-        for address, instruction in self.instructions:
-            print(f"\t {z80.disasm(instruction).replace('0x', '$').lower()}")
-
-    def get_labels(self):
-        return self.labels
+        self.lines = lines
 
     def process(self, segment_data):
-        self.disassemble(segment_data)
-        # self.print_instructions()
         # Save the instructions to an .asm file
-        asm_folder = "data/asm"
+        asm_folder = "data/asm/segment"
         os.makedirs(asm_folder, exist_ok=True)
         asm_file = os.path.join(asm_folder, f"{self.name}.asm")
-        lines = []
-        definitions = []
-        i = 0
-        for address, instruction in self.instructions:
-            line = z80.disasm(instruction).lower()
 
-            operands = [t for types in instruction.operands for t in types]
-            # if address == 0x10DE:
-            #     print(instruction.typ)
-            if address in self.labels.keys():
-                if (address, f'\n\nLABEL_{self.labels[address]}:\n') not in lines:
-                    lines.append(
-                        (address, f'\n\nLABEL_{self.labels[address]}:\n'))
-            # Put definitions at start of the code and replace on every OUT instruction
-            if instruction.op is z80.OP.OUT:
-                if "0x00be" in line:
-                    def_name = "Port_VDPData"
-                    definition = f"\t.def {def_name}\t$BF\n"
-                    if definition not in definitions:
-                        lines.insert(0, (address, definition))
-                        definitions.append(definition)
-                    line = line.replace('0x00bf', def_name)
-                elif "0x00bf" in line:
-                    def_name = "Port_VDPAddress"
-                    definition = f"\t.def {def_name}\t$BF\n"
-                    if definition not in definitions:
-                        lines.insert(0, (address, definition))
-                        definitions.append(definition)
-                    line = line.replace('0x00bf', def_name)
-            # Put definitions at start of the code and replace on every IN instruction
-            elif instruction.op is z80.OP.IN:
-                if "0x00bf" in line:
-                    def_name = "Port_VDPStatus"
-                    definition = f"\t.def {def_name}\t$BF\n"
-                    if definition not in definitions:
-                        lines.insert(0, (address, definition))
-                        definitions.append(definition)
-                    line = line.replace('0x00bf', def_name)
-                elif "0x00dc" in line:
-                    def_name = "Port_IOPort1"
-                    definition = f"\t.def {def_name}\t$DC\n"
-                    if definition not in definitions:
-                        lines.insert(0, (address, definition))
-                        definitions.append(definition)
-                    line = line.replace('0x00dc', def_name)
-                elif "0x00dd" in line:
-                    def_name = "Port_IOPort2"
-                    definition = f"\t.def {def_name}\t$DD\n"
-                    if definition not in definitions:
-                        lines.insert(0, (address, definition))
-                        definitions.append(definition)
-                    line = line.replace('0x00dd', def_name)
-
-            if z80.OPER_TYPE.IMM in operands:
-                line = line.replace('0x', '$')
-            elif z80.OPER_TYPE.ADDR_DEREF in operands:
-                line = line.replace('0x', '$')
-
-            if i == 0:
-                # Put a label before every first instruction
-                if address == 0x0:
-                    label = '_START:'
-                    lines.append((address, f"\n{label}\n"))
-                    self.labels[address] = label
-                else:
-                    label = f'{address:04X}'
-                    lines.append((address, f'\n\nLABEL_{label}:\n'))
-                    self.labels[address] = label
-
-            if instruction.typ is z80.INSTRTYPE.JUMP_CALL_RETURN:
-                # Put a label after every RET instruction except last
-                if instruction.op is z80.OP.RET and (i < len(self.instructions)-1):
-                    lines.append((address,
-                                  f"\t{line}\n"))
-                    if ((address+instruction.len),
-                            f'\n\nLABEL_{label}:\n') not in lines:
-                        label = f'{(address+instruction.len):04X}'
-                        lines.append(((address+instruction.len),
-                                      f'\n\nLABEL_{label}:\n'))
-                        self.labels[address+instruction.len] = label
-                else:
-                    for oper in instruction.operands:
-                        if oper[0] is z80.OPER_TYPE.ADDR:
-                            label = f'{oper[1]:04X}'
-                            if oper[1] not in self.labels.keys():
-                                self.labels[oper[1]] = label
-                                # print(f'{oper[1]:04X} {address:04X}')
-                                if oper[1] < address:
-                                    x = 0
-                                    for l in lines:
-                                        if l[0] == oper[1]:
-                                            if (oper[1], f'\n\nLABEL_{label}:\n') not in lines:
-                                                lines.insert(
-                                                    x, (oper[1], f'\n\nLABEL_{label}:\n'))
-                                                break
-                                        x += 1
-                            line = line.replace(
-                                f"0x{oper[1]:04x}", f'LABEL_{label}')
-                    lines.append((address,
-                                  f"\t{line}\n"))
-            else:
-                lines.append((address,
-                              f"\t{line}\n"))
-            i += 1
+        # Segment address range into a asm fil
+        seg_lines = []
+        include = None
+        for i in range(len(self.lines)):
+            addr, line = self.lines[i]
+            if (addr >= self.start) and (addr < self.end):
+                if (addr == self.start):
+                    include = (i-1, addr)
+                seg_lines.append((addr, line))
+                
+        #  Replace code segment by include
+        for addr, line in seg_lines:
+            self.lines.remove((addr, line))
+        if include != None:
+            self.lines.insert(include[0], (include[1], f'\n\n.INCLUDE "{asm_file}"\n\n'))
+        # Remove first two breaklines from segment 
+        if '\n\n' in seg_lines[0][1]:
+            seg_lines[0] = (seg_lines[0][0], seg_lines[0][1].replace('\n\n', ''))
 
         with open(asm_file, "w") as f:
-            for addr, line in lines:
-                #f.write(f'[{addr:04X}]{line}')
+            for addr, line in seg_lines:
                 f.write(f'{line}')
         print(f"Segment {self.name}: Saved as a code in {asm_file}.")
