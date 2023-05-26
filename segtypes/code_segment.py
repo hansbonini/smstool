@@ -14,22 +14,22 @@ class CodeSegment(Segment):
         os.makedirs(asm_folder, exist_ok=True)
         asm_file = os.path.join(asm_folder, f"{self.name}.asm")
 
-        # Segment address range into a asm fil
+        # Segment address range into a asm file
         seg_lines = []
         include = None
         for i in range(len(self.lines)):
             addr, line = self.lines[i]
             if (addr >= self.start) and (addr < self.end):
-                if (addr == self.start):
-                    include = (i-1, addr)
+                if (addr == self.start):           
+                    include = (i, addr)
                 seg_lines.append((addr, line))
 
         #  Replace code segment by include
-        for addr, line in seg_lines:
-            self.lines.remove((addr, line))
         if include is not None:
             self.lines.insert(
                 include[0], (include[1], f'\n\n.INCLUDE "{asm_file}"\n\n'))
+        for addr, line in seg_lines:
+            self.lines.remove((addr, line))
         # Remove first two breaklines from segment
         if '\n\n' in seg_lines[0][1]:
             seg_lines[0] = (seg_lines[0][0], seg_lines[0]

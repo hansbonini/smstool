@@ -1,7 +1,19 @@
 segments:
+  - name: set_vdp_address
+    start: 0x8
+    end: 0xF
+    type: code
+  - name: memcpy_to_vram
+    start: 0x30
+    end: 0x38
+    type: code
   - name: reset
     start: 0x38
     end: 0x46
+    type: code
+  - name: handle_interrupt
+    start: 0xC0
+    end: 0x120
     type: code
   - name: box_skull
     start: 0xC000

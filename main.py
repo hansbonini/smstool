@@ -9,8 +9,7 @@ from segtypes.image_segment import ImageSegment
 from segtypes.code_segment import CodeSegment
 
 
-def disassemble(rom_data):
-    labels = {}
+def disassemble(rom_data, labels={}):
     constants = []
     instructions = []
     lines = []
@@ -27,9 +26,9 @@ def disassemble(rom_data):
         line = z80.disasm(instruction).lower()
         operands = [t for types in instruction.operands for t in types]
         if address in labels.keys():
-            if (address, f'\n\nLABEL_{labels[address]}:\n') not in lines:
+            if (address, f'\n\n{labels[address]}:\n') not in lines:
                 lines.append(
-                    (address, f'\n\nLABEL_{labels[address]}:\n'))
+                    (address, f'\n\n{labels[address]}:\n'))
         # Put constants at start of the code and replace on every OUT instruction
         if instruction.op is z80.OP.OUT:
             if "0x00be" in line:
@@ -77,8 +76,8 @@ def disassemble(rom_data):
                 lines.append((address, f"\n{label}\n"))
                 labels[address] = label
             else:
-                label = f'{address:04X}'
-                lines.append((address, f'\n\nLABEL_{label}:\n'))
+                label = f'LABEL_{address:04X}'
+                lines.append((address, f'\n\n{label}:\n'))
                 labels[address] = label
 
         if instruction.typ is z80.INSTRTYPE.JUMP_CALL_RETURN:
@@ -87,29 +86,31 @@ def disassemble(rom_data):
                 lines.append((address,
                               f"\t{line}\n"))
                 if ((address+instruction.len),
-                        f'\n\nLABEL_{label}:\n') not in lines:
-                    label = f'{(address+instruction.len):04X}'
+                        f'\n\n{label}:\n') not in lines:
+                    label = f'LABEL_{(address+instruction.len):04X}'
+                    if address+instruction.len not in labels.keys():
+                        labels[address+instruction.len] = label
                     lines.append(((address+instruction.len),
-                                  f'\n\nLABEL_{label}:\n'))
-                    labels[address+instruction.len] = label
+                                  f'\n\n{labels[address+instruction.len]}:\n'))
             else:
                 for oper in instruction.operands:
-                    if oper[0] is z80.OPER_TYPE.ADDR:
-                        label = f'{oper[1]:04X}'
-                        if oper[1] not in labels.keys():
-                            labels[oper[1]] = label
-                            # print(f'{oper[1]:04X} {address:04X}')
-                            if oper[1] < address:
+                    oper_type, oper_value = oper
+                    if oper_type is z80.OPER_TYPE.ADDR:
+                        label = f'LABEL_{oper_value:04X}'
+                        if oper_value not in labels.keys():
+                            labels[oper_value] = label
+                            # print(f'{oper_value:04X} {address:04X}')
+                            if oper_value < address:
                                 x = 0
                                 for l in lines:
-                                    if l[0] == oper[1]:
-                                        if (oper[1], f'\n\nLABEL_{label}:\n') not in lines:
+                                    if l[0] == oper_value:
+                                        if (oper_value, f'\n\n{labels[oper_value]}:\n') not in lines:
                                             lines.insert(
-                                                x, (oper[1], f'\n\nLABEL_{label}:\n'))
+                                                x, (oper_value, f'\n\n{labels[oper_value]}:\n'))
                                             break
                                     x += 1
                         line = line.replace(
-                            f"0x{oper[1]:04x}", f'LABEL_{label}')
+                            f"0x{oper_value:04x}", f'{labels[oper_value]}')
                 lines.append((address,
                               f"\t{line}\n"))
         else:
@@ -133,8 +134,22 @@ def read_rom(rom_file, yaml_file):
         cls.__name__.lower().replace("segment", ""): cls for cls in Segment.__subclasses__()
     }
 
-    lines = disassemble(rom)
 
+    # Disassemble ROM
+    def_labels = {}
+    for segment in yaml_data['segments']:
+        start = segment['start']
+        end = segment['end']
+        segment_type = segment['type']
+        name = segment['name']
+
+        segment_class = segment_classes.get(segment_type.lower())
+        if segment_type == 'code':
+            def_labels[start] = name
+
+    lines = disassemble(rom, def_labels)
+
+    # Generate Segments
     for segment in yaml_data['segments']:
         start = segment['start']
         end = segment['end']
@@ -160,6 +175,7 @@ def read_rom(rom_file, yaml_file):
         segment_data = rom[start:end + 1]
         segment_obj.process(segment_data)
 
+    # Save Disassemble
     asm_folder = "data/asm"
     os.makedirs(asm_folder, exist_ok=True)
     asm_file = os.path.join(asm_folder, f"main.asm")
