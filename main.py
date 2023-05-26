@@ -19,7 +19,7 @@ def disassemble(rom_data):
     # Disassemble rom code
     while address < len(rom_data):
         decoded = z80.decode(rom_data[address::], address)
-        if decoded.status == z80.DECODE_STATUS.OK:
+        if decoded.status is z80.DECODE_STATUS.OK:
             instructions.append((address, decoded))
         address += decoded.len
     # Adjust disassembled code to WLA-DX syntax
@@ -166,9 +166,8 @@ def read_rom(rom_file, yaml_file):
 
     with open(asm_file, "w") as f:
         for addr, line in lines:
-            #f.write(f'[{addr:04X}{line}')
+            # f.write(f'[{addr:04X}{line}')
             f.write(f'{line}')
-
 
 
 if __name__ == "__main__":

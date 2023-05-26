@@ -23,15 +23,17 @@ class CodeSegment(Segment):
                 if (addr == self.start):
                     include = (i-1, addr)
                 seg_lines.append((addr, line))
-                
+
         #  Replace code segment by include
         for addr, line in seg_lines:
             self.lines.remove((addr, line))
-        if include != None:
-            self.lines.insert(include[0], (include[1], f'\n\n.INCLUDE "{asm_file}"\n\n'))
-        # Remove first two breaklines from segment 
+        if include is not None:
+            self.lines.insert(
+                include[0], (include[1], f'\n\n.INCLUDE "{asm_file}"\n\n'))
+        # Remove first two breaklines from segment
         if '\n\n' in seg_lines[0][1]:
-            seg_lines[0] = (seg_lines[0][0], seg_lines[0][1].replace('\n\n', ''))
+            seg_lines[0] = (seg_lines[0][0], seg_lines[0]
+                            [1].replace('\n\n', ''))
 
         with open(asm_file, "w") as f:
             for addr, line in seg_lines:

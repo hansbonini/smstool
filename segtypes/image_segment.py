@@ -5,19 +5,21 @@ from PIL import Image
 from .segment import Segment
 import yaml
 
+
 class ImageSegment(Segment):
-    def __init__(self, start, end, name, bpp=4, width=None, height=None):
+    def __init__(self, start, end, name, bpp=4, width=None, height=None, lines=[]):
         super().__init__(start, end, name)
         self.bpp = bpp
         self.width = width
         self.height = height
+        self.lines = lines
 
     @staticmethod
     def convert_to_bpp_planar(segment_data, bpp, width, height):
         tile_count = len(segment_data) // (8 * bpp)
         grid_default = math.ceil(math.sqrt(tile_count))
         grid_width = (width * 8) // 8 if width is not None else grid_default
-        grid_height = (height * 8 )// 8 if height is not None else grid_default
+        grid_height = (height * 8) // 8 if height is not None else grid_default
 
         pixel_buffer = [[0] * (grid_width * 8) for _ in range(grid_height * 8)]
 
@@ -31,7 +33,8 @@ class ImageSegment(Segment):
             for y in range(8):
                 for x in range(8):
                     if row * 8 + y < grid_height * 8 and col * 8 + x < grid_width * 8:
-                        pixel_buffer[row * 8 + y][col * 8 + x] = tile_pixels[y][x]
+                        pixel_buffer[row * 8 + y][col *
+                                                  8 + x] = tile_pixels[y][x]
 
         return pixel_buffer
 
@@ -43,7 +46,8 @@ class ImageSegment(Segment):
             planes = [tile_data[y * bpp + p] for p in range(bpp)]
 
             for x in range(8):
-                pixel = sum(((plane >> (7 - x)) & 0x01) << p for p, plane in enumerate(planes))
+                pixel = sum(((plane >> (7 - x)) & 0x01) <<
+                            p for p, plane in enumerate(planes))
                 pixels[y][x] = pixel
 
         return pixels
@@ -89,13 +93,39 @@ class ImageSegment(Segment):
         images_folder = os.path.join("data", "images")
         os.makedirs(images_folder, exist_ok=True)
 
-        converted_data = self.convert_to_bpp_planar(segment_data, self.bpp, self.width, self.height)
+        binaries_folder = os.path.join("data", "images", "bin")
+        os.makedirs(binaries_folder, exist_ok=True)
+
+        converted_data = self.convert_to_bpp_planar(
+            segment_data, self.bpp, self.width, self.height)
         rgb_data = self.convert_to_rgb(converted_data, self.bpp)
 
-        image_path = os.path.join(images_folder, f"{self.name}.png")
+        image_path = os.path.join(images_folder, f"{self.name}_{self.bpp}bpp.png")
         self.save_image(rgb_data, image_path)
 
-        print(f"Segment {self.name}: Converted to {self.bpp}bpp planar and saved as image in {image_path}.")
+        file_path = os.path.join(binaries_folder, f"{self.name}_{self.bpp}bpp.bin")
+        with open(file_path, 'wb') as binary_file:
+            binary_file.write(segment_data)
+
+        # Segment address range into a asm file
+        seg_lines = []
+        include = None
+        for i in range(len(self.lines)):
+            addr, line = self.lines[i]
+            if (addr >= self.start) and (addr < self.end):
+                if (addr == self.start):
+                    include = (i-1, addr)
+                seg_lines.append((addr, line))
+
+        #  Replace code segment by include
+        for addr, line in seg_lines:
+            self.lines.remove((addr, line))
+        if include != None:
+            self.lines.insert(
+                include[0], (include[1], f'\n\n.INCLUDE "{file_path}"\n\n'))
+
+        print(
+            f"Segment {self.name}: Converted to {self.bpp}bpp planar and saved as image in {image_path}.")
 
     @staticmethod
     def save_image(image, path):
